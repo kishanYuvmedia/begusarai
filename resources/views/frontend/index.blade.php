@@ -163,7 +163,6 @@
                                                 class="img-fluid rounded-3">
                                         </a>
 
-
                                     </div>
                                 @else
                                     <div class="position-relative modal-body bg-image overlay p-0">
@@ -187,8 +186,6 @@
                 </div>
                 {{-- @endif --}}
 
-
-
                 {{-- Featured Slider container --}}
                 <div class="slider-container">
                     <div class="container">
@@ -207,7 +204,7 @@
                             <div class="carousel-inner">
                                 @foreach ($IndexPageVideo as $key => $video)
                                     <div class="carousel-item carousel-item-slider{{ $key === 0 ? ' active' : '' }}"
-                                        data-bs-interval="3000" data-pause="hover">
+                                        data-bs-interval="4000" data-pause="hover">
 
                                         @if ($video->content_type == 'video')
                                             <div class="embed-responsive embed-responsive-16by9">
@@ -253,17 +250,17 @@
 
                         <div class="slick-sliders offset-item">
 
-                            <div class="slick-slider business-cat-slider slider-pd30" data-item="6" data-arrows="true"
-                                data-itemScroll="6" data-dots="true" data-centerPadding="50" data-tabletitem="3"
-                                data-tabletscroll="3" data-smallpcitem="4" data-smallpcscroll="4" data-mobileitem="3"
-                                data-mobilescroll="2" data-mobilearrows="false">
+                            <div class="slick-slider business-cat-slider slider-pd30" data-item="8" data-arrows="true"
+                                data-itemScroll="1" data-dots="true" data-centerPadding="50" data-tabletitem="4"
+                                data-tabletscroll="1" data-smallpcitem="1" data-smallpcscroll="1" data-mobileitem="4"
+                                data-mobilescroll="1" data-mobilearrows="false">
 
                                 @foreach ($submaster as $value)
                                     <div class="bsn-cat-item cyan">
                                         <a
                                             href="{{ route('searchFilter', ['category' => $value->title, 'city' => 'all', 'highlight' => 'all']) }}">
                                             <i class="{{ $value->value }}"></i>
-                                            <span class="title">{{ $value->title }}</span>
+                                            <span class="title"> {{ str_replace('-', ' ', $value->title) }}</span>
                                             <span class="place">{{ $categoryCount[$value->title] }}</span>
                                         </a>
                                     </div>
@@ -302,7 +299,7 @@
                                         <a
                                             href="{{ route('searchFilter', ['category' => $value->title, 'city' => 'all', 'highlight' => 'all']) }}">
                                             <i class="{{ $value->value }}"></i>
-                                            <span class="title">{{ $value->title }}</span>
+                                            <span class="title">{{ str_replace('-', ' ', $value->title) }}</span>
                                             {{-- <span class="place">{{ $categoryCount[$value->title] }}</span> --}}
                                         </a>
                                     </div>
@@ -327,9 +324,9 @@
                             Trending Business Places
                         </h2>
                         <div class="slick-sliders offset-item">
-                            <div class="slick-slider trending-slider slider-pd30" data-item="4" data-arrows="true"
-                                data-itemScroll="4" data-dots="true" data-centerPadding="30" data-tabletitem="2"
-                                data-tabletscroll="2" data-smallpcscroll="3" data-smallpcitem="3" data-mobileitem="1"
+                            <div id="businesslisting" class="slick-slider trending-slider slider-pd30" data-item="5" data-arrows="true"
+                                data-itemScroll="1" data-dots="true" data-centerPadding="30" data-tabletitem="2"
+                                data-tabletscroll="1" data-smallpcscroll="1" data-smallpcitem="1" data-mobileitem="1"
                                 data-mobilescroll="1" data-mobilearrows="false">
 
                                 @foreach ($Result as $value)
@@ -337,10 +334,22 @@
                                         <div class="place-item layout-02 place-hover">
                                             <div class="place-inner">
                                                 <div class="place-thumb hover-img">
+                                                    <?php 
+                                                if(Auth::user()){
+                                                ?>
                                                     <a class="entry-thumb"
-                                                        href="{{ URL::to('listingDetail/' . $value->id . '/' . $value->category) }}">
+                                                        href="{{ URL::to('listingDetail/' . $value->category . '/' . Str::slug($value->businessName) . '-' . $value->id) }}">
                                                         <img src="{{ URL::to('uploads/' . $value->coverImage) }}" />
                                                     </a>
+
+
+                                                    <?php 
+                                                        }else{
+                                                        ?>
+                                                    <a class="entry-thumb  open-login" href="">
+                                                        <img src="{{ URL::to('uploads/' . $value->coverImage) }}" />
+                                                    </a>
+                                                    <?php }?>
 
                                                     <?php 
                                                 if(Auth::user()){
@@ -387,19 +396,34 @@
                                                             @endif
                                                         @endforeach
 
-                                                        <span>{{ $value->category }}</span>
+                                                        <span> {{ str_replace('-', ' ', $value->category) }}</span>
+
+
                                                     </a>
                                                     <!-- Add debugging statements -->
 
                                                     <a href="#" class="author" title="Author">
-                                                        <img src="{{ URL::to('uploads/' . $value->logo) }}"alt="Author" />
+                                                        <img src="{{ URL::to('uploads/' . $value->logo) }}"
+                                                            alt="Author" />
                                                     </a>
                                                     <!-- <div class="feature">Featured</div> -->
                                                 </div>
                                                 <div class="entry-detail">
                                                     <h3 class="place-title">
+                                                        <?php 
+                                                        if(Auth::user()){
+                                                        ?>
+
                                                         <a
-                                                            href="{{ URL::to('listingDetail/' . $value->id . '/' . $value->category) }}">{{ $value->businessName }}</a>
+                                                            href="{{ URL::to('listingDetail/' . $value->category . '/' . Str::slug($value->businessName) . '-' . $value->id) }}">{{ $value->businessName }}</a>
+
+                                                        <?php 
+                                                        }else{
+                                                        ?>
+                                                        <a href=""
+                                                            class="open-login ">{{ $value->businessName }}</a>
+                                                        <?php }?>
+
                                                     </h3>
 
                                                     <div class="entry-head">
@@ -535,7 +559,7 @@
                         </h2>
                         <div class="slick-sliders offset-item">
                             <div class="slick-slider testimonial-slider layout-02 slider-pd30" data-item="2"
-                                data-arrows="true" data-itemScroll="2" data-dots="true" data-centerPadding="30"
+                                data-arrows="true" data-itemScroll="1" data-dots="true" data-centerPadding="30"
                                 data-tabletitem="1" data-tabletscroll="1" data-mobileitem="1" data-mobilescroll="1"
                                 data-mobilearrows="false">
 
@@ -705,33 +729,7 @@
         });
     </script>
 
-    {{-- Slider pause on slide --}}
-    {{-- <script>
-    $(document).ready(function() {
-        var isInteracting = false;
-        var carousel = $('#sliderAutoplaying');
-
-        // Pause the carousel when the user interacts with it
-        carousel.on('slide.bs.carousel', function() {
-            isInteracting = true;
-            carousel.carousel('pause');
-        });
-
-        // Resume auto-sliding after a delay (e.g., 3 seconds)
-        var delay = 3000; // Adjust the delay as needed
-
-        function resumeAutoSlide() {
-            if (!isInteracting) {
-                carousel.carousel('next'); // Auto slide to the next item
-            }
-            isInteracting = false; // Reset interaction flag
-            setTimeout(resumeAutoSlide, delay);
-        }
-
-        // Start auto-sliding
-        resumeAutoSlide();
-    });
-</script> --}}
+    
     <script>
         // Get the search button element
         var searchButton = document.querySelector('.field-submit button');
@@ -741,6 +739,10 @@
             // Get the values of the "s" and "where" inputs
             var searchInputValue = document.querySelector('#s').value || "all";
             var whereInputValue = document.querySelector('#loca').value || "all";
+<<<<<<< HEAD
+=======
+
+>>>>>>> rahul/main
             // Redirect to the desired URL with the values
             var redirectURL = "/searchFilter/" + searchInputValue + "/" + whereInputValue + "/all";
             window.location.href = redirectURL;
@@ -776,4 +778,6 @@
             sInput.value = dataCityValue;
         });
     </script>
+
+
 @endsection

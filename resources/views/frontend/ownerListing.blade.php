@@ -66,9 +66,10 @@ $Mastercity = Master::orderBy('created_at', 'asc')
             <div class="member-menu">
                 <div class="container">
                     <ul>
-                        <li><a href="/ownerDashboard">Dashboard</a></li>
-                        <!-- <li><a href="/ownerLeads">Leads</a></li> -->
-                        <li class="active"><a href="/ownerListing">My places</a></li>
+                        @if (Auth::user()->type == 'Owner')
+                    <li class="active"><a href="/ownerDashboard">Dashboard</a></li>
+                    <li><a href="/ownerListing">My business</a></li>
+                    @endif
 
                         <li><a href="/ownerWishlist">Wishlist</a></li>
                         <li><a href="/ownerProfile">Profile</a></li>
@@ -214,7 +215,7 @@ $Mastercity = Master::orderBy('created_at', 'asc')
                                                 <i class="las la-edit"></i>
                                             </a>
 
-                                            <a href="{{ route('listingDetail', ['id' => $business->id, 'category' => $business->category]) }}"
+                                            <a href="{{ URL::to('listingDetail/' . $business->category . '/' . Str::slug($business->businessName).'-'.$business->id ) }}"
                                                 class="view" title="View"><i class="la la-eye"></i></a>
 
                                             {{-- <a href="{{ route('ownerLeads', ['id' => $business->id]) }}" class="list"

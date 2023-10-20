@@ -25,12 +25,13 @@ use App\Models\BuyPlan;
 use App\Models\Popup_ads;
 use App\Models\Duration;
 
-
 use Carbon\Carbon;
 use Razorpay\Api\Api;
 use DB;
 use Log;
 use View;
+use Illuminate\Support\Facades\Crypt;
+use Illuminate\Contracts\Encryption\DecryptException;
 
 class HomeController extends Controller
 {
@@ -66,16 +67,17 @@ class HomeController extends Controller
             'password' => 'required',
         ]);
 
-        $credentials = $request->only('mobileNumber', 'password');
+        $user = User_Login::where('mobileNumber', $request->input('mobileNumber'))->first();
 
-        if (Auth::guard('user')->attempt($credentials)) {
-            // Authentication passed
-            return response()->json(['success' => true, 'redirect' => '/']);
+        if ($user && Hash::check($request->input('password'), $user->password)) {
+            Auth::guard('user')->login($user);
+            return response()->json(['success' => true, 'redirect' => '/', 'user' => $user]);
         }
 
         // If authentication fails, return an error message
         return response()->json(['success' => false, 'message' => ' Oops!  Try again with the right info']);
     }
+
     public function logout()
     {
         Auth::logout();
@@ -132,12 +134,14 @@ class HomeController extends Controller
             // Return a success response=.
             //   return view('frontend.setPassword', compact('user'));
             return response()->json(['success' => true, 'redirect' => route('setPassword', compact('user'))]);
-        } catch (\Exception $e) {
-            if (strpos($e->getMessage(), 'Duplicate entry') !== false) {
-                // Handle duplicate entry error (user already exists)
-                return response()->json(['success' => false, 'errors' => ['This mobile number is already registered.']]);
+        } catch (\Illuminate\Database\QueryException $e) {
+            if ($e->errorInfo[1] === 1062) {
+                // 1062 is the error code for duplicate entry
+                return response()->json(['success' => false, 'errors' => ['']]);
+                // return response()->json(['success' => false, 'errors' => ['This mobile number is already registered.']]);
+
             } else {
-                // Handle other exceptions
+                // Handle other database-related errors
                 return response()->json(['success' => false, 'errors' => [$e->getMessage()]]);
             }
         }
@@ -160,11 +164,11 @@ class HomeController extends Controller
             })
                 ->select('businesslist.*', 'bookmarks.id AS bookmark_status')
                 ->orderBy('businesslist.home_featured', 'asc')
-                ->take(4)
+                ->take(5)
                 ->get();
         } else {
             $businesses = BusinessList::orderBy('home_featured', 'asc')
-                ->take(4)
+                ->take(5)
                 ->get();
         }
         $Result = [];
@@ -400,16 +404,15 @@ class HomeController extends Controller
     }
     public function updatePlace(Request $request, $id)
     {
-      
         // Validation rules (same as savePlace)
         $rules = [
-            'category' => 'required',
+            'businessName' => 'required',
+            'ownerName' => 'required',
             'description' => 'required',
+            'category' => 'required',
             'city' => 'required',
             'placeAddress' => 'required',
-            'ownerName' => 'required',
             'phoneNumber1' => 'required',
-            'businessName' => 'required',
         ];
 
         foreach (['coverImage', 'logo'] as $fileField) {
@@ -433,8 +436,8 @@ class HomeController extends Controller
             // Update business properties
             $business->userId = Auth::id();
             $business->category = $request->input('category');
-            $business->placeType = $request->has('placeType') ? implode(',', $request->input('placeType')) : 'null';
-            $business->highlight = $request->has('highlight') ? implode(',', $request->input('highlight')) : 'null';
+            $business->placeType = $request->has('placeType') ? implode(',', $request->input('placeType')) : ' ';
+            $business->highlight = $request->has('highlight') ? implode(',', $request->input('highlight')) : ' ';
             $business->description = $request->input('description');
             $business->price = $request->input('price');
 
@@ -586,22 +589,17 @@ class HomeController extends Controller
 
     public function savePlace(Request $request)
     {
-      
-      
         //  dd($request->input('cin'));
         $rules = [
-            'category' => 'required',
-
+            'businessName' => 'required',
+            'ownerName' => 'required',
             'description' => 'required',
-
+            'category' => 'required',
             'city' => 'required',
             'placeAddress' => 'required',
-            'ownerName' => 'required',
-
             'phoneNumber1' => 'required',
-            'businessName' => 'required',
-            'coverImage' => 'required|image|mimes:jpg,jpeg,png,svg,webp',
-            'documentImage' => 'required|mimes:pdf', // Validate PDF
+            'coverImage' => 'required|image|mimes:jpg,jpeg,png,svg,webp|max:1048', // Adjust the 'max' value as needed (in kilobytes) 2mb
+            'documentImage' => 'required|mimes:pdf|max:1048', // Adjust the 'max' value as needed (in kilobytes) 2 mb
         ];
 
         foreach (['coverImage', 'logo'] as $fileField) {
@@ -624,8 +622,8 @@ class HomeController extends Controller
         try {
             $business->userId = Auth::id();
             $business->category = $request->input('category');
-            $business->placeType = $request->has('placeType') ? implode(',', $request->input('placeType')) : 'null';
-            $business->highlight = $request->has('highlight') ? implode(',', $request->input('highlight')) : 'null';
+            $business->placeType = $request->has('placeType') ? implode(',', $request->input('placeType')) : ' ';
+            $business->highlight = $request->has('highlight') ? implode(',', $request->input('highlight')) : ' ';
 
             $business->description = $request->input('description');
             $business->price = $request->input('price');
@@ -749,73 +747,85 @@ class HomeController extends Controller
 
         return view('frontend.setPassword', compact('User_id'));
     }
-
     public function submitPassword(Request $request)
     {
-        // Validate the request data
-        $validator = Validator::make($request->all(), [
-            'first_name' => 'required',
-            'type' => 'required|in:guest,owner',
-            'new_password' => 'required|min:6|confirmed', // Ensure 'new_password' and 'new_password_confirmation' match
-            'address_filing' => 'required', // Add validation for 'address_filing'
-            'block_number' => 'required_if:address_filing,from_begusarai', // Add validation for 'block_number' if 'from_begusarai' is selected
-            'village_ward' => 'required_if:address_filing,from_begusarai', // Add validation for 'village_ward' if 'from_begusarai' is selected
-            'city_name' => 'required_if:address_filing,outside_begusarai', // Add validation for 'city_name' if 'outside_begusarai' is selected
-        ]);
+        try {
+            $validator = Validator::make($request->all(), [
+                'first_name' => 'required',
+                'type' => 'required|in:guest,owner',
+                'new_password' => 'required|min:6|confirmed',
+                'address_filing' => 'required',
+                'block_number' => 'required_if:address_filing,from_begusarai',
+                'village_ward' => 'required_if:address_filing,from_begusarai',
+                'city_name' => 'required_if:address_filing,outside_begusarai',
+            ]);
 
-        if ($validator->fails()) {
+            if ($validator->fails()) {
+                return redirect()
+                    ->back()
+                    ->withErrors($validator)
+                    ->withInput();
+            }
+
+            $record = User_Login::where('id', $request->mobileNumber)->first();
+
+            if ($record) {
+                $record->name = $request->input('first_name');
+                $record->type = $request->input('type');
+                $record->password = bcrypt($request->input('new_password'));
+                $record->viewPassword = $request->input('new_password');
+
+                $record->status = 1;
+
+                $addressFiling = $request->input('address_filing');
+                $record->address_filing = $addressFiling;
+
+                if ($addressFiling === 'from_begusarai') {
+                    $record->block_number = $request->input('block_number');
+                    $record->village_ward = $request->input('village_ward');
+                    $record->city_name = null;
+                } elseif ($addressFiling === 'outside_begusarai') {
+                    $record->block_number = null;
+                    $record->village_ward = null;
+                    $record->city_name = $request->input('city_name');
+                }
+
+                $record->save();
+
+                if (Auth::attempt(['mobileNumber' => $record->mobileNumber, 'password' => $request->input('new_password')])) {
+                    return redirect()
+                        ->route('index')
+                        ->with('success', 'Account Created Successfully');
+                } else {
+                    return redirect()
+                        ->back()
+                        ->with('error', 'Registration failed. Please try again.');
+                }
+            } else {
+                return redirect()
+                    ->back()
+                    ->with('error', 'User record not found.');
+            }
+        } catch (\Exception $e) {
             return redirect()
                 ->back()
-                ->withErrors($validator)
-                ->withInput();
+                ->with('error', 'An error occurred. Please try again later.');
         }
-
-        // Find the user record by mobileNumber
-        $record = User_Login::where('id', $request->mobileNumber)->first();
-
-        if ($record) {
-            // Update the user record with the provided data
-            $record->name = $request->input('first_name');
-            $record->type = $request->input('type');
-            $record->password = bcrypt($request->input('new_password')); // Hash the password
-            $record->status = '1';
-
-            // Set the additional fields based on the 'address_filing' value
-            $record->address_filing = $request->input('address_filing');
-            if ($request->input('address_filing') === 'from_begusarai') {
-                $record->block_number = $request->input('block_number');
-                $record->village_ward = $request->input('village_ward');
-                $record->city_name = null; // Set 'city_name' to null for 'from_begusarai'
-            } elseif ($request->input('address_filing') === 'outside_begusarai') {
-                $record->block_number = null; // Set 'block_number' to null for 'outside_begusarai'
-                $record->village_ward = null; // Set 'village_ward' to null for 'outside_begusarai'
-                $record->city_name = $request->input('city_name');
-            }
-
-            $record->save();
-
-            // Attempt to authenticate the user
-            $credentials = [
-                'mobileNumber' => $record->mobileNumber,
-                'password' => $request->input('new_password'),
-            ];
-
-            if (Auth::guard('user')->attempt($credentials)) {
-                // Authentication passed
-                return redirect()
-                    ->route('index') // Replace 'index' with the actual route you want to redirect to after login
-                    ->with('success', 'Welcome to our community! Your account has been successfully created.');
-            }
-        }
-
-        // Handle the case where the user record was not found or authentication failed
-        return redirect()
-            ->back()
-            ->with('error', 'Registration failed. Please try again.');
     }
 
-    public function listingDetail(Request $request, $id, $category)
+    //  if ($record) {
+    //                 // Authentication passed
+
+    //                 return response()->json(['success' => true, 'message' => 'Account created successfully']);
+    //             } else {
+    //                 return response()->json(['success' => false, 'message' => 'Registration failed. Please try again.'], 400);
+    //             }
+
+    public function listingDetail(Request $request, $category, $url)
     {
+        $parts = explode('-', $url);
+        $id = end($parts);
+
         $duration = Duration::orderBy('created_at', 'asc')
             ->where('businessId', $id)
             ->get();
@@ -1071,7 +1081,7 @@ class HomeController extends Controller
     {
         $lead = Lead::orderBy('created_at', 'asc')
             ->where('business_id', '=', $id)
-            // ->where('status', '=', '1')
+            ->where('status', '=', '1')
             ->get();
 
         return view('frontend.ownerLeads', compact('lead'));
@@ -1221,11 +1231,13 @@ class HomeController extends Controller
 
     public function searchFilter(Request $request, $category, $city, $highlight)
     {
+        $titleurl="";
         if ($city == 'all' && $highlight == 'all' && $category != 'all') {
             $similer = BusinessList::where('category', $category)
                 ->where('status', '1')
                 ->orderBy('category_ranking', 'asc')
                 ->paginate(10);
+                $titleurl=$category;
         }
 
         if ($city != 'all' && $highlight == 'all' && $category == 'all') {
@@ -1233,11 +1245,13 @@ class HomeController extends Controller
                 ->where('status', '1')
                 ->orderBy('city_ranking', 'asc')
                 ->paginate(10);
+                $titleurl=$city;
         }
         if ($city == 'all' && $highlight == 'all' && $category == 'all') {
             $similer = BusinessList::where('status', '1')
                 ->orderBy('created_at', 'desc')
                 ->paginate(10);
+                  $titleurl="Search Listing";
         }
         if ($city != 'all' && $highlight == 'all' && $category != 'all') {
             $similer = BusinessList::where('category', $category)
@@ -1245,6 +1259,7 @@ class HomeController extends Controller
                 ->where('status', '1')
                 ->orderBy('created_at', 'desc')
                 ->paginate(10);
+                 $titleurl=$city." | ".$category;
         }
         $submasterCategory = Master::orderBy('created_at', 'asc')
             ->where('type', '=', 'category')
@@ -1282,9 +1297,15 @@ class HomeController extends Controller
             $value->rating = $averageRating;
             $value->count = count($reviews);
             $Result[] = $value;
+
             // Debugging statements
             // dd($subvalue->title, $value->category, $subvalue->value);
         }
+        // Sort the $Result array by 'rating' in descending order
+        $ResultFirst = collect($Result)
+            ->sortByDesc('count')
+            ->values()
+            ->all();
 
         $submasterCategory = Master::orderBy('created_at', 'asc')
             ->where('type', '=', 'category')
@@ -1298,11 +1319,12 @@ class HomeController extends Controller
             ->where('type', '=', 'highlight')
             ->get();
 
-        return view('frontend.searchFilter', compact('Result', 'submaster', 'submasterCategory', 'submasterHighlight', 'similer'));
+        return view('frontend.searchFilter', compact('Result', 'ResultFirst', 'submaster', 'submasterCategory', 'submasterHighlight', 'similer','titleurl'));
     }
 
     public function showFilterData(Request $request)
     {
+        
         $submasterCategory = Master::orderBy('created_at', 'asc')
             ->where('type', '=', 'category')
             ->get();
@@ -1425,17 +1447,16 @@ class HomeController extends Controller
         // Fetch the authenticated user
         $user = auth()->user();
 
-        if (Hash::check($request->password, $user->password)) {
-            $user
-                ->fill([
-                    'password' => Hash::make($request->new_password),
-                ])
-                ->save();
+        if ($user && Hash::check($request->input('password'), $user->password)) {
+            $user->password = Hash::make($request->input('new_password'));
+            $user->viewPassword = $request->input('new_password');
+
+            $user->save();
 
             $request->session()->flash('success', 'Password changed successfully.');
             return redirect()->route('ownerProfile');
         } else {
-            $request->session()->flash('error', 'Password does not match');
+            $request->session()->flash('error', 'Current password does not match. Please try again.');
             return redirect()->route('ownerProfile');
         }
     }
@@ -1534,6 +1555,7 @@ class HomeController extends Controller
         }
 
         $user->password = bcrypt($request->input('new_password'));
+        $user->viewPassword = $request->input('new_password');
         $user->save();
         session()->flash('success', 'Reset password successfully');
         return response()->json(['success' => true]);
@@ -1542,15 +1564,15 @@ class HomeController extends Controller
         //     ->with('success', 'Password reset successfully.');
     }
 
-    public function addDuration( $bid)
+    public function addDuration($bid)
     {
         // dd($id);
-        $duration = Duration::orderBy('created_at', 'asc')->where('businessId', $bid)->get();
+        $duration = Duration::orderBy('created_at', 'asc')
+            ->where('businessId', $bid)
+            ->get();
 
         return view('frontend.addDuration', compact('duration', 'bid'));
     }
-
- 
 
     public function saveDuration(Request $request)
     {

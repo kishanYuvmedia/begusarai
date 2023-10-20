@@ -9,9 +9,10 @@
             <div class="member-menu">
                 <div class="container">
                     <ul>
-                        <li><a href="/ownerDashboard">Dashboard</a></li>
-                        <!-- <li><a href="/ownerLeads">Leads</a></li> -->
-                        <li><a href="/ownerListing">My places</a></li>
+                         @if (Auth::user()->type == 'Owner')
+                    <li class="active"><a href="/ownerDashboard">Dashboard</a></li>
+                    <li><a href="/ownerListing">My business</a></li>
+                    @endif
                         <li class="active"><a href="/ownerWishlist">Wishlist</a></li>
                         <li><a href="/ownerProfile">Profile</a></li>
                     </ul>
@@ -31,10 +32,11 @@
                                 <div class="place-item layout-02 place-hover">
                                     <div class="place-inner">
                                         <div class="place-thumb hover-img">
-                                            <a class="entry-thumb"
-                                                href="{{ URL::to('listingDetail/' . $value->id . '/' . $value->category) }}">
-                                                <img src="{{ URL::to('uploads/' . $value->coverImage) }}" />
-                                            </a>
+                                             <a class="entry-thumb"
+                                                        href="{{ URL::to('listingDetail/' . $value->category . '/' . Str::slug($value->businessName).'-'.$value->id ) }}">
+                                                        <img src="{{ URL::to('uploads/' . $value->coverImage) }}" />
+                                                    </a>
+
                                             <?php 
                                                 if(Auth::user()){
                                                 ?>
@@ -88,7 +90,7 @@
                                         <div class="entry-detail">
                                             
                                             <h3 class="place-title">
-                                                <a href="{{ URL::to('listingDetail/' . $value->id . '/' . $value->category) }}">{{ $value->businessName }}</a>
+                                                <a href="{{ URL::to('listingDetail/' . $value->category . '/' . Str::slug($value->businessName).'-'.$value->id ) }}">{{ $value->businessName }}</a>
                                             </h3>
 
                                             <div class="entry-head">

@@ -86,6 +86,7 @@ Route::get('/lead/inactive/{id}', 'LeadController@inactive');
 
 
 Route::resource('listing', 'ListingController');
+
 Route::get('/listing/active/{id}', 'ListingController@active');
 Route::get('/listing/inactive/{id}', 'ListingController@inactive');
 
@@ -95,7 +96,7 @@ Route::get('/listing/homefeturedActive/{id}', 'ListingController@homefeturedActi
 Route::get('/listing/homefeturedinactive/{id}', 'ListingController@homefeturedinactive');
 
 // Sub-Master Routing
-Route::resource('setting', 'SubMasterController');
+Route::resource('submaster', 'SubMasterController');
 Route::resource('popupSetting', 'popupSettingController');
 
 Route::resource('blog', 'BlogController');
