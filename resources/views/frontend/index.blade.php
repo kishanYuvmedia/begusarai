@@ -739,13 +739,11 @@
         // Add a click event listener to the search button
         searchButton.addEventListener('click', function() {
             // Get the values of the "s" and "where" inputs
-            var searchInputValue = document.querySelector('#s').value;
-            var whereInputValue = document.querySelector('#loca').value;
-
+            var searchInputValue = document.querySelector('#s').value || "all";
+            var whereInputValue = document.querySelector('#loca').value || "all";
             // Redirect to the desired URL with the values
             var redirectURL = "/searchFilter/" + searchInputValue + "/" + whereInputValue + "/all";
             window.location.href = redirectURL;
-
             // Prevent the default form submission
             event.preventDefault();
         });
